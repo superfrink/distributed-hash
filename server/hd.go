@@ -10,10 +10,21 @@ import "log"
 import "net"
 import "strings"
 
+type HashResponse struct {
+	status string
+	value string
+}
+type HashRequest struct {
+	cmd string
+	key string
+	value string
+	out chan HashResponse
+}
+
 var debug bool
 var listenPort uint
 
-func handleClientRequest(conn net.Conn) {
+func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 
 	maxBufSize := 1024  // FIXME: is this size good?
 
@@ -78,7 +89,17 @@ func handleClientRequest(conn net.Conn) {
 				return
 			}
 
-			// FIXME : incomplete
+			responseChannel := make(chan HashResponse)
+
+			var request HashRequest
+			request.cmd = cmd
+			request.key = key
+			request.out = responseChannel
+			hashAccessor <- request
+
+			response := <- responseChannel
+			fmt.Printf("response: '%+v'\n", response)
+			conn.Write([]byte(fmt.Sprintf("%s %d%s\n", response.status, len(response.value), response.value)));
 
 		} else if 0 == strings.Index(requestString, "PUT ") {
 			//conn.Write([]byte("put\n"));
@@ -99,10 +120,58 @@ func handleClientRequest(conn net.Conn) {
 			conn.Write([]byte(fmt.Sprintf("key: %s\n", key)));
 			conn.Write([]byte(fmt.Sprintf("val: %s\n", val)));
 
+			responseChannel := make(chan HashResponse)
+
+			var request HashRequest
+			request.cmd = cmd
+			request.key = key
+			request.value = val
+			request.out = responseChannel
+			hashAccessor <- request
+
+			response := <- responseChannel
+			fmt.Printf("response: '%+v'\n", response)
+
 			// FIXME : incomplete
 		}
 
 	}
+}
+
+func createHashAccessor(table map[string]string) chan HashRequest {
+	requestChannel := make(chan HashRequest)
+
+	go func() {
+		for {
+			request := <- requestChannel
+			fmt.Printf("hashAccessor - cmd %s\n", request.cmd)
+				switch request.cmd {
+				case "GET":
+					var response HashResponse
+					var ok bool
+
+					if response.value, ok = table[request.key]; ok {
+						response.status = "EXISTS"
+					} else {
+						response.status = "NOTEXISTS"
+					}
+
+					go func() { request.out <- response }()
+
+				case "PUT":
+					table[request.key] = request.value
+					var response HashResponse
+					response.status = "OK"
+					go func() { request.out <- response }()
+
+				default:
+					fmt.Printf("hashAccessor - unexpected cmd %s\n", request.cmd)
+					// FIXME : incomplete
+				}
+		}
+	}()
+
+	return requestChannel;
 }
 
 func main() {
@@ -119,8 +188,7 @@ func main() {
 	// GOAL : create the storage for the hash table
 
 	hashTable := make(map[string]string)
-	// FIXME : create goroutines to read/write to channels to update this
-	// hashTable and pass the channels into the handleClientRequest().
+	hashAccessor := createHashAccessor(hashTable)
 
 	// GOAL : accept connections from the network
 
@@ -138,6 +206,6 @@ func main() {
 			// FIXME handle error
 			continue
 		}
-		go handleClientRequest(conn)
+		go handleClientRequest(conn, hashAccessor)
 	}
 }
