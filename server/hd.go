@@ -99,7 +99,11 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 
 			response := <- responseChannel
 			fmt.Printf("response: '%+v'\n", response)
-			conn.Write([]byte(fmt.Sprintf("%s %d%s\n", response.status, len(response.value), response.value)));
+			if "EXISTS" == response.status {
+				conn.Write([]byte(fmt.Sprintf("%s %d %s\n", response.status, len(response.value), response.value)));
+			} else {
+				conn.Write([]byte(fmt.Sprintf("%s\n", response.status)));
+			}
 
 		} else if 0 == strings.Index(requestString, "PUT ") {
 			//conn.Write([]byte("put\n"));
