@@ -1,0 +1,19 @@
+#!/bin/bash
+
+declare -i START_PORT
+PID_DIR="run-dir"
+
+for pid_file in ${PID_DIR}/*.pid ; do
+
+    # DOC : the glob does not expand if no pid files exist
+    if [ -f $pid_file ] ; then
+        pid=`cat $pid_file`
+    	echo "killing $pid"
+    	kill $pid
+    	rm $pid_file
+    fi
+
+    START_PORT+=1
+done
+
+exit 0
