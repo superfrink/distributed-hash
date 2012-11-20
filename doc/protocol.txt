@@ -1,0 +1,55 @@
+This document describes the protocol between the hash client "hc" and hash
+daemon "hd".
+
+
+== Summary ==
+
+The protocol is text based.  Arguments are separated by a space.
+eg "PUT a 123" (without quotes).
+
+A trailing newlines is ignored so "GET a" and "GET a\n" are equivalent.
+
+Commands end after one read of the network socket up to 1024 bytes.  NOTE:
+there is a bug with this method because a delay tells the server to parse the data in the buffer.  Consider:
+
+  (echo -n "GET" ;           echo -n " a") | nc -q1 localhost 1742
+  (echo -n "GET" ; sleep 1 ; echo -n " a") | nc -q1 localhost 1742
+
+The former works while the latter does not because the server sees two
+requests: "GET" followed by " a".  Neither of which are valid.
+
+
+== Commands ==
+
+1) GET $key
+
+eg this command:
+  $ echo "GET a" | nc -q1 localhost 1742
+returns either:
+  a) "NOTEXISTS\n" (without quotes) if nothing is stored at that key
+
+  b) "EXISTS 3 123" (without quotes) if the value "123" is stored at that key.
+     the "3" indicates the value is 3 bytes long.
+
+This could be an issue because the key might contain spaces.  The result is
+the request "GET a 123\n" is specifying the key "a 123".  NOTE: The PUT
+command does not have a way to specify spaces in a key.
+
+
+2) PUT $key $value
+
+eg this command:
+  $ echo "PUT a 123" | nc -q1 localhost 1742
+
+returns nothing and saves the value "123" at the key "a" in the hash.
+
+
+== Detailed Example ==
+
+  $ echo "GET a"     | nc -q1 localhost 1742
+  NOTEXISTS
+
+  $ echo "PUT a 123" | nc -q1 localhost 1742
+
+  $ echo "GET a"     | nc -q1 localhost 1742
+  EXISTS 3 123
