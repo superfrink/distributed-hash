@@ -67,6 +67,8 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 		// }
 
 		requestString := string(buf)
+		requestString = strings.Trim(requestString, string(0)) // trim buffer null bytes
+		requestString = strings.TrimSpace(requestString)       // trim trailing newlines, github issue #1
 
 		// FIXME : replace the Index() with a split to get the command name and the rest
 
@@ -77,7 +79,6 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 			parts := strings.SplitN(requestString, " ", 2)
 			cmd := parts[0]
 			key := parts[1]
-			key = strings.Trim(key, string(0)) // trim buffer null bytes
 			conn.Write([]byte(fmt.Sprintf("cmd: %s\n", cmd)));
 			conn.Write([]byte(fmt.Sprintf("key: %s\n", key)));
 			conn.Write([]byte(fmt.Sprintf("len: %v\n", len(key))));
@@ -119,7 +120,6 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 			cmd := parts[0]
 			key := parts[1]
 			val := parts[2]
-			val = strings.Trim(val, string(0)) // trim buffer null bytes
 			conn.Write([]byte(fmt.Sprintf("cmd: %s\n", cmd)));
 			conn.Write([]byte(fmt.Sprintf("key: %s\n", key)));
 			conn.Write([]byte(fmt.Sprintf("val: %s\n", val)));
