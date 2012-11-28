@@ -7,16 +7,14 @@ daemon "hd".
 The protocol is text based.  Arguments are separated by a space.
 eg "PUT a 123" (without quotes).
 
-A trailing newlines is ignored so "GET a" and "GET a\n" are equivalent.
+Commands end with a newline.  The newline must be present.  NOTE: there is
+a bug with this method.  Consider:
 
-Commands end after one read of the network socket up to 1024 bytes.  NOTE:
-there is a bug with this method because a delay tells the server to parse the data in the buffer.  Consider:
+  (echo 'GET a' ; sleep 1 ; echo 'GET b') | nc -q1 localhost 1742
+  (echo 'GET a' ;           echo 'GET b') | nc -q1 localhost 1742
 
-  (echo -n "GET" ;           echo -n " a") | nc -q1 localhost 1742
-  (echo -n "GET" ; sleep 1 ; echo -n " a") | nc -q1 localhost 1742
-
-The former works while the latter does not because the server sees two
-requests: "GET" followed by " a".  Neither of which are valid.
+The former is seen as two GET commands.  In the latter case the second GET
+is discarded in a buffer after the first command is read.
 
 
 == Commands ==
@@ -28,7 +26,7 @@ eg this command:
 returns either:
   a) "NOTEXISTS\n" (without quotes) if nothing is stored at that key
 
-  b) "EXISTS 3 123" (without quotes) if the value "123" is stored at that key.
+  b) "EXISTS 3 123\n" (without quotes) if the value "123" is stored at that key.
      the "3" indicates the value is 3 bytes long.
 
 This could be an issue because the key might contain spaces.  The result is
