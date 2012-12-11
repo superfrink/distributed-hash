@@ -66,7 +66,9 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 
 			}
 			//log.Printf("totalBuf: %v", totalBuf)
-			if debug { log.Printf("Bytes(): %v", totalBuf.Bytes()) }
+			if debug {
+				log.Printf("Bytes(): %v", totalBuf.Bytes())
+			}
 
 			var cmd []byte
 			// DOC: 0x0A is "\n"
@@ -77,8 +79,10 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 					conn.Close()
 					return
 				}
-				if debug { log.Printf("cmd found: %s\n", cmd) }
-				if debug { log.Printf("Bytes(): %v", totalBuf.Bytes()) }
+				if debug {
+					log.Printf("cmd found: %s\n", cmd)
+					log.Printf("Bytes(): %v", totalBuf.Bytes())
+				}
 				requestString = string(cmd)
 				break
 			}
