@@ -5,6 +5,7 @@ package main
 // purpose: the daemon for a single node in a distributed hash table
 // git: 
 
+import "bytes"
 import "flag"
 import "fmt"
 import "log"
@@ -27,60 +28,61 @@ var listenPort uint
 
 func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 
-	maxBufSize := 1024 // FIXME: is this size good?
+	maxBufSize := 1024
+	var err error
 
+	var totalBuf bytes.Buffer
 	for { // read and process a command loop
 
 		requestString := ""
 
 		for strings.Index(requestString, "\n") < 0 { // read until we find a single command loop
 
-			buf := make([]byte, maxBufSize)
+			if bytes.IndexByte(totalBuf.Bytes(), 0x0A) < 0 {
 
-			byteCount, err := conn.Read(buf)
-			if err != nil {
-				log.Println(err)
-				conn.Close()
-				return
-			}
-
-			// FIXME : it would be better to append to a buffer for long requests
-			if byteCount >= maxBufSize {
-
-				byteCount, err = conn.Write([]byte(fmt.Sprintf("Reuqests must be shorter than %d bytes.\n", maxBufSize)))
+				buf := make([]byte, maxBufSize)
+				byteCount, err := conn.Read(buf)
 				if err != nil {
 					log.Println(err)
 					conn.Close()
 					return
 				}
-				log.Println("request greater than buffer size")
-				conn.Close()
-				return
+
+				if byteCount >= maxBufSize {
+
+					byteCount, err = conn.Write([]byte(fmt.Sprintf("Reuqests must be shorter than %d bytes.\n", maxBufSize)))
+					if err != nil {
+						log.Println(err)
+						conn.Close()
+						return
+					}
+					log.Println("request greater than buffer size")
+					conn.Close()
+					return
+				}
+
+				buf = bytes.Trim(buf, string(0))
+				totalBuf.Write(buf)
+
 			}
+			//log.Printf("totalBuf: %v", totalBuf)
+			if debug { log.Printf("Bytes(): %v", totalBuf.Bytes()) }
 
-			// FIXME : We throw away the rest of what we read from the network.
-			// This means that in a command like:
-			//   (echo -ne 'GET a\nGET b\n') | nc -q1 localhost 1742
-			// only the "GET a" is processed but in a command like:
-			//   (echo -ne 'GET a\n' ; sleep 1 ; echo -ne 'GET b\n') | nc -q1 localhost 1742
-			// both "GET a" and "GET b" are processed.
-			bufStr := string(buf) // FIXME : can we index without this temp variable?
-			requestString += string(buf[0 : strings.Index(bufStr, "\n")+1])
+			var cmd []byte
+			// DOC: 0x0A is "\n"
+			if bytes.IndexByte(totalBuf.Bytes(), 0x0A) > -1 {
+				cmd, err = totalBuf.ReadBytes(0x0A)
+				if err != nil {
+					log.Println(err)
+					conn.Close()
+					return
+				}
+				if debug { log.Printf("cmd found: %s\n", cmd) }
+				if debug { log.Printf("Bytes(): %v", totalBuf.Bytes()) }
+				requestString = string(cmd)
+				break
+			}
 		}
-
-		// // echo back the number of bytes read and the message.
-		// byteCount, err = conn.Write([]byte(fmt.Sprintf("%d\n",byteCount)));
-		// if err != nil {
-		// 	log.Println(err)
-		// 	conn.Close();
-		// 	return
-		// }
-		// byteCount, err = conn.Write(buf);
-		// if err != nil {
-		// 	log.Println(err)
-		// 	conn.Close();
-		// 	return
-		// }
 
 		requestString = strings.Trim(requestString, string(0)) // trim buffer null bytes
 		requestString = strings.TrimSpace(requestString)       // trim trailing newlines, github issue #1
