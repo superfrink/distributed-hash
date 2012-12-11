@@ -10,12 +10,6 @@ eg "PUT a 123" (without quotes).
 Commands end with a newline.  The newline must be present.  NOTE: there is
 a bug with this method.  Consider:
 
-  (echo 'GET a' ; sleep 1 ; echo 'GET b') | nc -q1 localhost 1742
-  (echo 'GET a' ;           echo 'GET b') | nc -q1 localhost 1742
-
-The former is seen as two GET commands.  In the latter case the second GET
-is discarded in a buffer after the first command is read.
-
 
 == Commands ==
 
