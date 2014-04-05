@@ -9,6 +9,7 @@ package main
 import "encoding/json"
 import "flag"
 import "fmt"
+import "hash/crc32"
 import "io/ioutil"
 // import "net"
 import "os"
@@ -16,6 +17,7 @@ import "strings"
 
 type HashServerConfig struct {
 	Servers []string
+	ServerCount int
 }
 
 type HashResponse struct {
@@ -44,19 +46,40 @@ func read_hash_config(out *HashServerConfig) error {
 		return err
 	}
 
+	out.ServerCount = len(out.Servers)
+
 	return nil
 }
 
-func select_hash_server() {
-	// FIXME : incomplete
+func select_hash_server(config *HashServerConfig, key string) (server string) {
+
+	h := crc32.NewIEEE()
+    h.Write([]byte(key))
+    i := h.Sum32()
+    fmt.Printf("i: %v\n", i)
+
+	i = i % uint32(config.ServerCount)
+    fmt.Printf("i: %v\n", i)
+
+	return config.Servers[i]
 }
 
-func hash_read() {
-	// FIXME : incomplete
+func hash_read(config *HashServerConfig, key string) (string, error){
+
+	server := select_hash_server(config, key)
+	fmt.Printf("selected server: %s\n", server)
+
+	// FIXME : incomplete : connect to the server and read the value
+	return "FIXME", nil
 }
 
-func hash_write() {
-	// FIXME : incomplete
+func hash_write(config *HashServerConfig, key string, value string) (error) {
+
+	server := select_hash_server(config, key)
+	fmt.Printf("selected server: %s\n", server)
+
+	// FIXME : incomplete : connect to the server and write the key & value
+	return nil
 }
 
 func main() {
@@ -98,7 +121,12 @@ func main() {
 
 	if "GET" == cliRequest.Cmd {
 		
-		// FIXME : incomplete; call hash_read()
+		value, err := hash_read(&hash_config, cliRequest.Key)
+		if nil != err {
+			fmt.Printf("hash_read failed. %v\n", err)
+		}
+		fmt.Printf("read value: %s\n", value);	
+
 	} else if "PUT" == cliRequest.Cmd {
 
 		// FIXME : incomplete; call hash_write()
