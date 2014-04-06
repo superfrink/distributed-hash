@@ -100,9 +100,11 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 			parts := strings.SplitN(requestString, " ", 2)
 			cmd := parts[0]
 			key := parts[1]
-			conn.Write([]byte(fmt.Sprintf("cmd: %s\n", cmd)))
-			conn.Write([]byte(fmt.Sprintf("key: %s\n", key)))
-			conn.Write([]byte(fmt.Sprintf("len: %v\n", len(key))))
+
+			// FIXME : log or print with debugging enabled
+			//conn.Write([]byte(fmt.Sprintf("cmd: %s\n", cmd)))
+			//conn.Write([]byte(fmt.Sprintf("key: %s\n", key)))
+			//conn.Write([]byte(fmt.Sprintf("len: %v\n", len(key))))
 
 			if 0 == len(key) {
 				conn.Write([]byte("Missing key in GET\n"))
@@ -141,9 +143,11 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 			cmd := parts[0]
 			key := parts[1]
 			val := parts[2]
-			conn.Write([]byte(fmt.Sprintf("cmd: %s\n", cmd)))
-			conn.Write([]byte(fmt.Sprintf("key: %s\n", key)))
-			conn.Write([]byte(fmt.Sprintf("val: %s\n", val)))
+
+			// FIXME : log or print with debugging enabled
+			//conn.Write([]byte(fmt.Sprintf("cmd: %s\n", cmd)))
+			//conn.Write([]byte(fmt.Sprintf("key: %s\n", key)))
+			//conn.Write([]byte(fmt.Sprintf("val: %s\n", val)))
 
 			responseChannel := make(chan HashResponse)
 
@@ -157,6 +161,7 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 			response := <-responseChannel
 			fmt.Printf("response: '%+v'\n", response)
 
+			conn.Write([]byte("\n"))
 			// FIXME : incomplete
 		}
 

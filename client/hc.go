@@ -5,13 +5,14 @@ package main
 // purpose: CLI that talks to the nodes in the hash table
 // git: FIXME
 
-// import "bytes"
+import "bufio"
+//import "encoding/gob"
 import "encoding/json"
 import "flag"
 import "fmt"
 import "hash/crc32"
 import "io/ioutil"
-// import "net"
+import "net"
 import "os"
 import "strings"
 
@@ -69,8 +70,27 @@ func hash_read(config *HashServerConfig, key string) (string, error){
 	server := select_hash_server(config, key)
 	fmt.Printf("selected server: %s\n", server)
 
-	// FIXME : incomplete : connect to the server and read the value
-	return "FIXME", nil
+	// GOAL : connect to the server and read the value
+	conn, err := net.Dial("tcp", server)
+	if err != nil {
+		return "", err
+	}
+
+	//enc := gob.NewEncoder(conn) // FIXME : incomplete
+
+	fmt.Fprintf(conn, "GET %s\n", key)
+	status, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	fmt.Printf("status: %s\n", status);
+
+	value := ""
+	if "NOTEXISTS" != status {
+		// FIXME : incomplete
+	}
+
+	return value, nil
 }
 
 func hash_write(config *HashServerConfig, key string, value string) (error) {
@@ -78,7 +98,21 @@ func hash_write(config *HashServerConfig, key string, value string) (error) {
 	server := select_hash_server(config, key)
 	fmt.Printf("selected server: %s\n", server)
 
-	// FIXME : incomplete : connect to the server and write the key & value
+	// GOAL : connect to the server and read the value
+	conn, err := net.Dial("tcp", server)
+	if err != nil {
+		return err
+	}
+
+	//enc := gob.NewEncoder(conn) // FIXME : incomplete
+
+	fmt.Fprintf(conn, "PUT %s %s\n", key, value)
+	status, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		return err
+	}
+	fmt.Printf("status: %s\n", status);
+
 	return nil
 }
 
@@ -102,7 +136,9 @@ func main() {
 	cliRequest.Cmd = flag.Arg(0)
 	cliRequest.Key = flag.Arg(1)
 
-	// FIXME : read value if NArg == 3
+	if flag.NArg() >= 3 {
+		cliRequest.Value = flag.Arg(2)
+	}
 
 	cliRequest.Cmd = strings.ToUpper(cliRequest.Cmd)
 
@@ -129,6 +165,9 @@ func main() {
 
 	} else if "PUT" == cliRequest.Cmd {
 
-		// FIXME : incomplete; call hash_write()
+		err := hash_write(&hash_config, cliRequest.Key, cliRequest.Value)
+		if nil != err {
+			fmt.Printf("hash_write failed. %v\n", err)
+		}
 	}
 }
