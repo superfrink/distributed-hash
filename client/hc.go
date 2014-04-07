@@ -6,6 +6,7 @@ package main
 // git: FIXME
 
 import "bufio"
+
 //import "encoding/gob"
 import "encoding/json"
 import "flag"
@@ -17,7 +18,7 @@ import "os"
 import "strings"
 
 type HashServerConfig struct {
-	Servers []string
+	Servers     []string
 	ServerCount int
 }
 
@@ -55,17 +56,17 @@ func read_hash_config(out *HashServerConfig) error {
 func select_hash_server(config *HashServerConfig, key string) (server string) {
 
 	h := crc32.NewIEEE()
-    h.Write([]byte(key))
-    i := h.Sum32()
-    fmt.Printf("i: %v\n", i)
+	h.Write([]byte(key))
+	i := h.Sum32()
+	fmt.Printf("i: %v\n", i)
 
 	i = i % uint32(config.ServerCount)
-    fmt.Printf("i: %v\n", i)
+	fmt.Printf("i: %v\n", i)
 
 	return config.Servers[i]
 }
 
-func hash_read(config *HashServerConfig, key string) (string, error){
+func hash_read(config *HashServerConfig, key string) (string, error) {
 
 	server := select_hash_server(config, key)
 	fmt.Printf("selected server: %s\n", server)
@@ -83,7 +84,7 @@ func hash_read(config *HashServerConfig, key string) (string, error){
 	if err != nil {
 		return "", err
 	}
-	fmt.Printf("status: %s\n", status);
+	fmt.Printf("status: %s\n", status)
 
 	value := ""
 	if "NOTEXISTS" != status {
@@ -93,7 +94,7 @@ func hash_read(config *HashServerConfig, key string) (string, error){
 	return value, nil
 }
 
-func hash_write(config *HashServerConfig, key string, value string) (error) {
+func hash_write(config *HashServerConfig, key string, value string) error {
 
 	server := select_hash_server(config, key)
 	fmt.Printf("selected server: %s\n", server)
@@ -111,7 +112,7 @@ func hash_write(config *HashServerConfig, key string, value string) (error) {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("status: %s\n", status);
+	fmt.Printf("status: %s\n", status)
 
 	return nil
 }
@@ -126,8 +127,8 @@ func main() {
 	fmt.Printf("debug: '%v'\n", debug)
 
 	if flag.NArg() < 2 {
-	   fmt.Println("FIXME - usage message")
-	   os.Exit(1)
+		fmt.Println("FIXME - usage message")
+		os.Exit(1)
 	}
 
 	// GOAL : read the command from the user
@@ -149,19 +150,19 @@ func main() {
 	var hash_config HashServerConfig
 	err := read_hash_config(&hash_config)
 	if nil != err {
-		fmt.Printf("error unable to read config %v\n", err);
+		fmt.Printf("error unable to read config %v\n", err)
 	}
-	fmt.Printf("hash_config: %+v\n", hash_config);
+	fmt.Printf("hash_config: %+v\n", hash_config)
 
 	// GOAL : execute the command from the user
 
 	if "GET" == cliRequest.Cmd {
-		
+
 		value, err := hash_read(&hash_config, cliRequest.Key)
 		if nil != err {
 			fmt.Printf("hash_read failed. %v\n", err)
 		}
-		fmt.Printf("read value: %s\n", value);	
+		fmt.Printf("read value: %s\n", value)
 
 	} else if "PUT" == cliRequest.Cmd {
 

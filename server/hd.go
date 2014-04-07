@@ -3,7 +3,7 @@ package main
 // project: distributed hash
 // file: hd.go - a single hash daemon
 // purpose: the daemon for a single node in a distributed hash table
-// git: 
+// git:
 
 import "bytes"
 import "flag"
