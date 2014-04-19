@@ -5,12 +5,13 @@ package main
 // purpose: the daemon for a single node in a distributed hash table
 // git:
 
-import "bytes"
+import "encoding/gob"
 import "flag"
 import "fmt"
+import "io"
 import "log"
 import "net"
-import "strings"
+import "os"
 
 type HashResponse struct {
 	status string
@@ -23,148 +24,100 @@ type HashRequest struct {
 	out   chan HashResponse
 }
 
+type HashWireMessage struct {
+	Cmd    string
+	Key    string
+	Value  string
+	Status string
+}
+
 var debug bool
 var listenPort uint
 
 func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 
-	maxBufSize := 1024
 	var err error
 
-	var totalBuf bytes.Buffer
+	enc := gob.NewEncoder(conn)
+	dec := gob.NewDecoder(conn)
+
+	var wireCmd HashWireMessage
+	var wireResponse HashWireMessage
+
 	for { // read and process a command loop
 
-		requestString := ""
+		wireCmd = HashWireMessage{}
+		wireResponse = HashWireMessage{}
 
-		for strings.Index(requestString, "\n") < 0 { // read until we find a single command loop
+		err = dec.Decode(&wireCmd)
+		if io.EOF == err {
+			return
+		}
+		if err != nil {
+			fmt.Printf("decode error: ", err)
+			os.Exit(1) // FIXME : don't exit
+		}
+		if debug {
+			fmt.Printf("wireCmd: %+v\n", wireCmd)
+		}
 
-			if bytes.IndexByte(totalBuf.Bytes(), 0x0A) < 0 {
+		if "GET" == wireCmd.Cmd {
+			responseChannel := make(chan HashResponse)
 
-				buf := make([]byte, maxBufSize)
-				byteCount, err := conn.Read(buf)
-				if err != nil {
-					log.Println(err)
-					conn.Close()
-					return
-				}
+			var request HashRequest
+			request.cmd = wireCmd.Cmd
+			request.key = wireCmd.Key
+			request.out = responseChannel
+			hashAccessor <- request
 
-				if byteCount >= maxBufSize {
-
-					byteCount, err = conn.Write([]byte(fmt.Sprintf("Reuqests must be shorter than %d bytes.\n", maxBufSize)))
-					if err != nil {
-						log.Println(err)
-						conn.Close()
-						return
-					}
-					log.Println("request greater than buffer size")
-					conn.Close()
-					return
-				}
-
-				buf = bytes.Trim(buf, string(0))
-				totalBuf.Write(buf)
-
-			}
-			//log.Printf("totalBuf: %v", totalBuf)
+			response := <-responseChannel
 			if debug {
-				log.Printf("Bytes(): %v", totalBuf.Bytes())
+				fmt.Printf("response: '%+v'\n", response)
 			}
 
-			var cmd []byte
-			// DOC: 0x0A is "\n"
-			if bytes.IndexByte(totalBuf.Bytes(), 0x0A) > -1 {
-				cmd, err = totalBuf.ReadBytes(0x0A)
-				if err != nil {
-					log.Println(err)
-					conn.Close()
-					return
-				}
-				if debug {
-					log.Printf("cmd found: %s\n", cmd)
-					log.Printf("Bytes(): %v", totalBuf.Bytes())
-				}
-				requestString = string(cmd)
-				break
-			}
-		}
+			wireResponse.Cmd = request.cmd
+			wireResponse.Key = request.key
 
-		requestString = strings.Trim(requestString, string(0)) // trim buffer null bytes
-		requestString = strings.TrimSpace(requestString)       // trim trailing newlines, github issue #1
-
-		// FIXME : replace the Index() with a split to get the command name and the rest
-
-		// GOAL : get the command from the request string
-		if 0 == strings.Index(requestString, "GET ") {
-			//conn.Write([]byte("get\n"));
-
-			parts := strings.SplitN(requestString, " ", 2)
-			cmd := parts[0]
-			key := parts[1]
-
-			// FIXME : log or print with debugging enabled
-			//conn.Write([]byte(fmt.Sprintf("cmd: %s\n", cmd)))
-			//conn.Write([]byte(fmt.Sprintf("key: %s\n", key)))
-			//conn.Write([]byte(fmt.Sprintf("len: %v\n", len(key))))
-
-			if 0 == len(key) {
-				conn.Write([]byte("Missing key in GET\n"))
-				log.Println("missing key in GET")
-				conn.Close()
-				return
-			}
-
-			responseChannel := make(chan HashResponse)
-
-			var request HashRequest
-			request.cmd = cmd
-			request.key = key
-			request.out = responseChannel
-			hashAccessor <- request
-
-			response := <-responseChannel
-			fmt.Printf("response: '%+v'\n", response)
 			if "EXISTS" == response.status {
-				conn.Write([]byte(fmt.Sprintf("%s %d %s\n", response.status, len(response.value), response.value)))
+				wireResponse.Value = response.value
+				wireResponse.Status = "EXISTS"
+
 			} else {
-				conn.Write([]byte(fmt.Sprintf("%s\n", response.status)))
+				wireResponse.Status = "NOEXISTS"
 			}
 
-		} else if 0 == strings.Index(requestString, "PUT ") {
-			//conn.Write([]byte("put\n"));
-
-			if strings.Count(requestString, " ") < 2 {
-				conn.Write([]byte("Missing value in PUT\n"))
-				log.Println("missing value in PUT")
-				conn.Close()
-				return
-			}
-
-			parts := strings.SplitN(requestString, " ", 3)
-			cmd := parts[0]
-			key := parts[1]
-			val := parts[2]
-
-			// FIXME : log or print with debugging enabled
-			//conn.Write([]byte(fmt.Sprintf("cmd: %s\n", cmd)))
-			//conn.Write([]byte(fmt.Sprintf("key: %s\n", key)))
-			//conn.Write([]byte(fmt.Sprintf("val: %s\n", val)))
+		} else if "PUT" == wireCmd.Cmd {
 
 			responseChannel := make(chan HashResponse)
 
 			var request HashRequest
-			request.cmd = cmd
-			request.key = key
-			request.value = val
+			request.cmd = wireCmd.Cmd
+			request.key = wireCmd.Key
+			request.value = wireCmd.Value
 			request.out = responseChannel
 			hashAccessor <- request
 
 			response := <-responseChannel
-			fmt.Printf("response: '%+v'\n", response)
+			if debug {
+				fmt.Printf("response: '%+v'\n", response)
+			}
 
-			conn.Write([]byte("\n"))
-			// FIXME : incomplete
+			wireResponse.Cmd = request.cmd
+			wireResponse.Key = request.key
+			wireResponse.Status = "ERROR"
+			if "OK" == response.status {
+				wireResponse.Status = "OK"
+			}
 		}
 
+		if debug {
+			fmt.Printf("wireResponse: %+v\n", wireResponse)
+		}
+		err = enc.Encode(wireResponse)
+		if err != nil {
+			fmt.Printf("encode error:", err)
+			os.Exit(1) // FIXME don't exit
+		}
 	}
 }
 
@@ -174,7 +127,9 @@ func createHashAccessor(table map[string]string) chan HashRequest {
 	go func() {
 		for {
 			request := <-requestChannel
-			fmt.Printf("hashAccessor - cmd %s\n", request.cmd)
+			if debug {
+				fmt.Printf("hashAccessor - cmd %s\n", request.cmd)
+			}
 			switch request.cmd {
 			case "GET":
 				var response HashResponse
@@ -196,7 +151,7 @@ func createHashAccessor(table map[string]string) chan HashRequest {
 
 			default:
 				fmt.Printf("hashAccessor - unexpected cmd %s\n", request.cmd)
-				// FIXME : incomplete
+				os.Exit(1) // FIXME don't exit
 			}
 		}
 	}()

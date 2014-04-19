@@ -1,47 +1,14 @@
 This document describes the protocol between the hash client "hc" and hash
 daemon "hd".
 
+The protocol use gob.  See http://blog.golang.org/gobs-of-data
 
-== Summary ==
+The struct used is:
 
-The protocol is text based.  Arguments are separated by a space.
-eg "PUT a 123" (without quotes).
+  type HashWireMessage struct {
+  	Cmd    string
+  	Key    string
+  	Value  string
+  	Status string
+  }
 
-Commands end with a newline.  The newline must be present.  NOTE: there is
-a bug with this method.  Consider:
-
-
-== Commands ==
-
-1) GET $key
-
-eg this command:
-  $ echo "GET a" | nc -q1 localhost 1742
-returns either:
-  a) "NOTEXISTS\n" (without quotes) if nothing is stored at that key
-
-  b) "EXISTS 3 123\n" (without quotes) if the value "123" is stored at that key.
-     the "3" indicates the value is 3 bytes long.
-
-This could be an issue because the key might contain spaces.  The result is
-the request "GET a 123\n" is specifying the key "a 123".  NOTE: The PUT
-command does not have a way to specify spaces in a key.
-
-
-2) PUT $key $value
-
-eg this command:
-  $ echo "PUT a 123" | nc -q1 localhost 1742
-
-returns nothing and saves the value "123" at the key "a" in the hash.
-
-
-== Detailed Example ==
-
-  $ echo "GET a"     | nc -q1 localhost 1742
-  NOTEXISTS
-
-  $ echo "PUT a 123" | nc -q1 localhost 1742
-
-  $ echo "GET a"     | nc -q1 localhost 1742
-  EXISTS 3 123

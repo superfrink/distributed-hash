@@ -5,9 +5,7 @@ package main
 // purpose: CLI that talks to the nodes in the hash table
 // git: FIXME
 
-import "bufio"
-
-//import "encoding/gob"
+import "encoding/gob"
 import "encoding/json"
 import "flag"
 import "fmt"
@@ -34,6 +32,13 @@ type HashCommand struct {
 	Out   chan HashResponse
 }
 
+type HashWireMessage struct {
+	Cmd    string
+	Key    string
+	Value  string
+	Status string
+}
+
 var debug bool
 
 func read_hash_config(out *HashServerConfig) error {
@@ -58,10 +63,10 @@ func select_hash_server(config *HashServerConfig, key string) (server string) {
 	h := crc32.NewIEEE()
 	h.Write([]byte(key))
 	i := h.Sum32()
-	fmt.Printf("i: %v\n", i)
+	//fmt.Printf("i: %v\n", i)
 
 	i = i % uint32(config.ServerCount)
-	fmt.Printf("i: %v\n", i)
+	//fmt.Printf("i: %v\n", i)
 
 	return config.Servers[i]
 }
@@ -69,7 +74,9 @@ func select_hash_server(config *HashServerConfig, key string) (server string) {
 func hash_read(config *HashServerConfig, key string) (string, error) {
 
 	server := select_hash_server(config, key)
-	fmt.Printf("selected server: %s\n", server)
+	if debug {
+		fmt.Printf("selected server: %s\n", server)
+	}
 
 	// GOAL : connect to the server and read the value
 	conn, err := net.Dial("tcp", server)
@@ -77,27 +84,43 @@ func hash_read(config *HashServerConfig, key string) (string, error) {
 		return "", err
 	}
 
-	//enc := gob.NewEncoder(conn) // FIXME : incomplete
+	enc := gob.NewEncoder(conn)
+	dec := gob.NewDecoder(conn)
 
-	fmt.Fprintf(conn, "GET %s\n", key)
-	status, err := bufio.NewReader(conn).ReadString('\n')
+	var wireCmd HashWireMessage
+	wireCmd.Cmd = "GET"
+	wireCmd.Key = key
+	wireCmd.Value = ""
+
+	err = enc.Encode(wireCmd)
 	if err != nil {
-		return "", err
+		fmt.Printf("encode error:", err)
+		os.Exit(1)
 	}
-	fmt.Printf("status: %s\n", status)
-
-	value := ""
-	if "NOTEXISTS" != status {
-		// FIXME : incomplete
+	if debug {
+		fmt.Printf("wireCmd: %+v\n", wireCmd)
 	}
 
-	return value, nil
+	var wireResponse HashWireMessage
+
+	err = dec.Decode(&wireResponse)
+	if err != nil {
+		fmt.Printf("decode error:", err)
+		os.Exit(1)
+	}
+	if debug {
+		fmt.Printf("wireResponse: %+v\n", wireResponse)
+	}
+
+	return wireResponse.Value, nil
 }
 
 func hash_write(config *HashServerConfig, key string, value string) error {
 
 	server := select_hash_server(config, key)
-	fmt.Printf("selected server: %s\n", server)
+	if debug {
+		fmt.Printf("selected server: %s\n", server)
+	}
 
 	// GOAL : connect to the server and read the value
 	conn, err := net.Dial("tcp", server)
@@ -105,14 +128,33 @@ func hash_write(config *HashServerConfig, key string, value string) error {
 		return err
 	}
 
-	//enc := gob.NewEncoder(conn) // FIXME : incomplete
+	enc := gob.NewEncoder(conn)
+	dec := gob.NewDecoder(conn)
 
-	fmt.Fprintf(conn, "PUT %s %s\n", key, value)
-	status, err := bufio.NewReader(conn).ReadString('\n')
+	var wireCmd HashWireMessage
+	wireCmd.Cmd = "PUT"
+	wireCmd.Key = key
+	wireCmd.Value = value
+
+	err = enc.Encode(wireCmd)
 	if err != nil {
-		return err
+		fmt.Printf("encode error:", err)
+		os.Exit(1)
 	}
-	fmt.Printf("status: %s\n", status)
+	if debug {
+		fmt.Printf("wireCmd: %+v\n", wireCmd)
+	}
+
+	var wireResponse HashWireMessage
+
+	err = dec.Decode(&wireResponse)
+	if err != nil {
+		fmt.Printf("decode error:", err)
+		os.Exit(1)
+	}
+	if debug {
+		fmt.Printf("wireResponse: %+v\n", wireResponse)
+	}
 
 	return nil
 }
@@ -143,7 +185,9 @@ func main() {
 
 	cliRequest.Cmd = strings.ToUpper(cliRequest.Cmd)
 
-	fmt.Printf("cliRequest %+v\n", cliRequest)
+	if debug {
+		fmt.Printf("cliRequest %+v\n", cliRequest)
+	}
 
 	// GOAL : read the hash server config
 
@@ -152,7 +196,9 @@ func main() {
 	if nil != err {
 		fmt.Printf("error unable to read config %v\n", err)
 	}
-	fmt.Printf("hash_config: %+v\n", hash_config)
+	if debug {
+		fmt.Printf("hash_config: %+v\n", hash_config)
+	}
 
 	// GOAL : execute the command from the user
 
