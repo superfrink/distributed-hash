@@ -41,9 +41,9 @@ type HashWireMessage struct {
 
 var debug bool
 
-func read_hash_config(out *HashServerConfig) error {
+func read_hash_config(filename string, out *HashServerConfig) error {
 
-	config_string, err := ioutil.ReadFile("hc.conf")
+	config_string, err := ioutil.ReadFile(filename)
 	if nil != err {
 		return err
 	}
@@ -165,6 +165,7 @@ Usa: hc [OPTIONS] COMMAND KEY [VALUE]
 
   OPTIONS are:
     -d           Enable debugging output.
+    -f           Configuration file name.  Defaults to "hc.conf".
     -h           Show this usage message.
 
   COMMAND is one of:
@@ -178,6 +179,7 @@ Examples:
   hc put ABC 123
   hc get ABC
   hc put OrderSize Medium
+  hc -f /data/quickchange/hc.conf get ABC
   hc get -d marble_count
 
 `;
@@ -189,13 +191,19 @@ func main() {
 	// GOAL : process command line arguments
 
 	var help bool
+	var configFileName string
 	flag.BoolVar(&debug, "d", false, "enable debug output")
+	flag.StringVar(&configFileName, "f", "hc.conf", "configuration file name")
 	flag.BoolVar(&help, "h", false, "show usage message")
 	flag.Parse()
 
 	if help || flag.NArg() < 2 {
 		fmt.Print(usage_message())
 		os.Exit(1)
+	}
+
+	if debug {
+		fmt.Printf("using config file: %s\n", configFileName)
 	}
 
 	// GOAL : read the command from the user
@@ -217,7 +225,7 @@ func main() {
 	// GOAL : read the hash server config
 
 	var hash_config HashServerConfig
-	err := read_hash_config(&hash_config)
+	err := read_hash_config(configFileName, &hash_config)
 	if nil != err {
 		fmt.Printf("error unable to read config %v\n", err)
 	}
