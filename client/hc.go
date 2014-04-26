@@ -3,7 +3,7 @@ package main
 // project: distributed hash
 // file: hc.go - a client that talks to hash daemons
 // purpose: CLI that talks to the nodes in the hash table
-// git: FIXME
+// git: https://github.com/superfrink/distributed-hash.git
 
 import "encoding/gob"
 import "encoding/json"
@@ -159,17 +159,42 @@ func hash_write(config *HashServerConfig, key string, value string) error {
 	return nil
 }
 
+func usage_message() string {
+	str := `
+Usa: hc [OPTIONS] COMMAND KEY [VALUE]
+
+  OPTIONS are:
+    -d           Enable debugging output.
+    -h           Show this usage message.
+
+  COMMAND is one of:
+    get          Retrieve a value.  KEY is required.  VALUE must be absent.
+    put          Store a value.  KEY and VALUE are required.
+
+  KEY is the key where VALUE is stored.
+
+Examples:
+
+  hc put ABC 123
+  hc get ABC
+  hc put OrderSize Medium
+  hc get -d marble_count
+
+`;
+	return str
+}
+
 func main() {
 
 	// GOAL : process command line arguments
 
+	var help bool
 	flag.BoolVar(&debug, "d", false, "enable debug output")
+	flag.BoolVar(&help, "h", false, "show usage message")
 	flag.Parse()
 
-	fmt.Printf("debug: '%v'\n", debug)
-
-	if flag.NArg() < 2 {
-		fmt.Println("FIXME - usage message")
+	if help || flag.NArg() < 2 {
+		fmt.Print(usage_message())
 		os.Exit(1)
 	}
 

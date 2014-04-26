@@ -3,7 +3,7 @@ package main
 // project: distributed hash
 // file: hd.go - a single hash daemon
 // purpose: the daemon for a single node in a distributed hash table
-// git:
+// git: https://github.com/superfrink/distributed-hash.git
 
 import "encoding/gob"
 import "flag"
@@ -159,16 +159,40 @@ func createHashAccessor(table map[string]string) chan HashRequest {
 	return requestChannel
 }
 
+func usage_message() string {
+	str := `
+Usa: hd [OPTIONS]
+
+  OPTIONS are:
+    -d           Enable debugging output.
+    -h           Show this usage message.
+    -p           Port number to listen on.  Defaults to 1742.
+
+Examples:
+
+  hd
+  hd -p 1234
+
+`;
+	return str
+}
+
 func main() {
 
 	// GOAL : process command line arguments
 
+	var help bool
 	flag.BoolVar(&debug, "d", false, "enable debug output")
+	flag.BoolVar(&help, "h", false, "show usage message")
 	flag.UintVar(&listenPort, "p", 1742, "port to listen on")
 	flag.Parse()
 
-	fmt.Printf("debug: '%v'\n", debug)
-	fmt.Printf("Listen port: '%d'\n", listenPort)
+	if help {
+		fmt.Print(usage_message())
+		os.Exit(1)
+	}
+
+	fmt.Printf("Listening on port %d.\n", listenPort)
 
 	// GOAL : create the storage for the hash table
 
