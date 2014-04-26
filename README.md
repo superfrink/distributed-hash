@@ -26,6 +26,8 @@ If a server process goes down the client will not try another server.
 The server only stores data in volatile memory.  Data is no longer
 retrievable after a server process terminates.  (GitHub Issue 5.)
 
+The network protocol is described in doc/protocol.txt
+
 # Client
 
 ## Usage

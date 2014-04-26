@@ -12,3 +12,19 @@ The struct used is:
   	Status string
   }
 
+The same struct is used for messages sent by both the client and the server.
+
+Commands are passed in the Cmd field.  Valid values are "GET" and "PUT".
+
+GET commands:
+
+- Requests using the GET command leave the Value and Status empty.
+- Responses to GET include the Cmd and Key in addition to the Value.
+- Responses to GET set Status to "EXISTS" when the key is not found.
+- Responses to GET set Status to "NOEXISTS" when the key & value were found.
+
+PUT commands:
+
+- Requests using PUT require the Key and Value.  The Status is empty.
+- PUT responses include the Cmd and Key but leave the Value empty.
+- PUT responses set Status to "ERROR" on failure and "OK" on success.
