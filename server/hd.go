@@ -41,15 +41,15 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 	enc := gob.NewEncoder(conn)
 	dec := gob.NewDecoder(conn)
 
-	var wireCmd HashWireMessage
+	var wireRequest HashWireMessage
 	var wireResponse HashWireMessage
 
 	for { // read and process a command loop
 
-		wireCmd = HashWireMessage{}
+		wireRequest = HashWireMessage{}
 		wireResponse = HashWireMessage{}
 
-		err = dec.Decode(&wireCmd)
+		err = dec.Decode(&wireRequest)
 		if io.EOF == err {
 			return
 		}
@@ -58,15 +58,15 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 			os.Exit(1) // FIXME : don't exit
 		}
 		if debug {
-			fmt.Printf("wireCmd: %+v\n", wireCmd)
+			fmt.Printf("wireRequest: %+v\n", wireRequest)
 		}
 
-		if "GET" == wireCmd.Cmd {
+		if "GET" == wireRequest.Cmd {
 			responseChannel := make(chan HashResponse)
 
 			var request HashRequest
-			request.cmd = wireCmd.Cmd
-			request.key = wireCmd.Key
+			request.cmd = wireRequest.Cmd
+			request.key = wireRequest.Key
 			request.out = responseChannel
 			hashAccessor <- request
 
@@ -86,14 +86,14 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 				wireResponse.Status = "NOEXISTS"
 			}
 
-		} else if "PUT" == wireCmd.Cmd {
+		} else if "PUT" == wireRequest.Cmd {
 
 			responseChannel := make(chan HashResponse)
 
 			var request HashRequest
-			request.cmd = wireCmd.Cmd
-			request.key = wireCmd.Key
-			request.value = wireCmd.Value
+			request.cmd = wireRequest.Cmd
+			request.key = wireRequest.Key
+			request.value = wireRequest.Value
 			request.out = responseChannel
 			hashAccessor <- request
 
@@ -108,6 +108,11 @@ func handleClientRequest(conn net.Conn, hashAccessor chan HashRequest) {
 			if "OK" == response.status {
 				wireResponse.Status = "OK"
 			}
+
+		} else {
+			// wireRequest.Cmd is not valid
+			wireResponse.Cmd = wireRequest.Cmd
+			wireResponse.Status = "INVALIDCMD"
 		}
 
 		if debug {
@@ -173,7 +178,7 @@ Examples:
   hd
   hd -p 1234
 
-`;
+`
 	return str
 }
 

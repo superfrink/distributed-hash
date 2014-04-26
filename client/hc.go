@@ -7,6 +7,7 @@ package main
 
 import "encoding/gob"
 import "encoding/json"
+import "errors"
 import "flag"
 import "fmt"
 import "hash/crc32"
@@ -87,18 +88,18 @@ func hash_read(config *HashServerConfig, key string) (string, error) {
 	enc := gob.NewEncoder(conn)
 	dec := gob.NewDecoder(conn)
 
-	var wireCmd HashWireMessage
-	wireCmd.Cmd = "GET"
-	wireCmd.Key = key
-	wireCmd.Value = ""
+	var wireRequest HashWireMessage
+	wireRequest.Cmd = "GET"
+	wireRequest.Key = key
+	wireRequest.Value = ""
 
-	err = enc.Encode(wireCmd)
+	err = enc.Encode(wireRequest)
 	if err != nil {
 		fmt.Printf("encode error:", err)
 		os.Exit(1)
 	}
 	if debug {
-		fmt.Printf("wireCmd: %+v\n", wireCmd)
+		fmt.Printf("wireRequest: %+v\n", wireRequest)
 	}
 
 	var wireResponse HashWireMessage
@@ -112,7 +113,25 @@ func hash_read(config *HashServerConfig, key string) (string, error) {
 		fmt.Printf("wireResponse: %+v\n", wireResponse)
 	}
 
-	return wireResponse.Value, nil
+	var retVal string = ""
+	var retErr error = nil
+
+	switch wireResponse.Status {
+	case "EXISTS":
+		// all good
+		retVal = wireResponse.Value
+
+	case "NOEXISTS":
+		// key not found
+		retErr = errors.New("Not Found")
+
+	default:
+		// not good
+		retErr = errors.New("Error reading from hd server. '" + wireResponse.Status + "'")
+	}
+
+	//return wireResponse.Value, nil
+	return retVal, retErr
 }
 
 func hash_write(config *HashServerConfig, key string, value string) error {
@@ -131,18 +150,18 @@ func hash_write(config *HashServerConfig, key string, value string) error {
 	enc := gob.NewEncoder(conn)
 	dec := gob.NewDecoder(conn)
 
-	var wireCmd HashWireMessage
-	wireCmd.Cmd = "PUT"
-	wireCmd.Key = key
-	wireCmd.Value = value
+	var wireRequest HashWireMessage
+	wireRequest.Cmd = "PUT"
+	wireRequest.Key = key
+	wireRequest.Value = value
 
-	err = enc.Encode(wireCmd)
+	err = enc.Encode(wireRequest)
 	if err != nil {
 		fmt.Printf("encode error:", err)
 		os.Exit(1)
 	}
 	if debug {
-		fmt.Printf("wireCmd: %+v\n", wireCmd)
+		fmt.Printf("wireRequest: %+v\n", wireRequest)
 	}
 
 	var wireResponse HashWireMessage
@@ -182,7 +201,7 @@ Examples:
   hc -f /data/quickchange/hc.conf get ABC
   hc get -d marble_count
 
-`;
+`
 	return str
 }
 

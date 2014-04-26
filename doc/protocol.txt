@@ -28,3 +28,5 @@ PUT commands:
 - Requests using PUT require the Key and Value.  The Status is empty.
 - PUT responses include the Cmd and Key but leave the Value empty.
 - PUT responses set Status to "ERROR" on failure and "OK" on success.
+
+Invalid commands cause the status "INVALIDCMD" to be returned.
