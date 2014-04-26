@@ -32,11 +32,15 @@ retrievable after a server process terminates.  (GitHub Issue 5.)
 
 To store the value 123 with key A run:
 
-  hc put A 123
+```
+hc put A 123
+```
 
 To retrieve the value for key A run:
 
-  hc get A
+```
+hc get A
+```
 
 Keys are case-sensitive.  The GET and PUT commands are case-insensitive.
 
@@ -44,12 +48,14 @@ Keys are case-sensitive.  The GET and PUT commands are case-insensitive.
 
 hc reads the list of servers out of hc.conf.  The file contains JSON. eg:
 
+```
   {
     "Servers": [
       "127.0.0.1:1750",
       "127.0.0.1:1759"
     ]
   }
+```
 
 
 The hc.conf must be in the current working directory. (GitHub Issue 4.)
@@ -60,7 +66,9 @@ The hc.conf must be in the current working directory. (GitHub Issue 4.)
 
 Start the process on port 1234 by running:
 
-  hd -p 1234
+```
+hd -p 1234
+```
 
 The default port is 1742.
 
